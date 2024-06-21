@@ -7,13 +7,43 @@ async function handleGenerateNewShortURL(req, res){
     const shortID = shortid()
 
     await URL.create({
-        shortID: shortID,
+        shortId: shortID,
         redirectURL:body.url,
-        visitHistory: []
+        visitHistory: [],
     })
     return res.json({ id: shortID })
 }
 
+async function handleGetAnalytics(req, res) {
+    const shortId = req.params.shortId
+    const result = await URL.findOne({ shortId })
+    return res.json({
+        totalClicks: result.visitHistory.length,
+        analytics: result.visitHistory})
+}
+
+async function handleRedirectURL(req, res){
+    const shortId = req.params.shortId
+    const userIP = req.headers['x-forwarded-for'] || req.connection.remoteAddress
+    console.log(`Received request for shortId: ${shortId} from IP: ${userIP}`)
+
+    const entry = await URL.findOneAndUpdate(
+        {
+        shortId,
+        },
+        { 
+         $push: {
+            visitHistory: {
+                timestamp: Date.now(),
+                ip: userIP,
+        },
+    },
+})
+res.redirect(entry.redirectURL)
+}
+
 module.exports = {
     handleGenerateNewShortURL,
+    handleGetAnalytics,
+    handleRedirectURL,
 }
